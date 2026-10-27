@@ -1,19 +1,22 @@
 # -*- coding: utf-8 -*-
-"""kpls.catalog — 接口目录（assets/apis.json，152 条：开盘啦官方 + py.590 平台 + Tushare + 新浪 + 东财）。
+"""kpls.catalog — 接口目录（152 条：开盘啦官方 + py.590 平台 + Tushare + 新浪 + 东财）。
 
-分片支持
---------
-原始 `apis.json` 约 128 KB，部分安装环境对**单文件体积**有限制，会导致整个技能
-导入中断（只落 SKILL.md）。为绕开这个限制，目录也可拆成若干分片：
+三种目录格式，均可混用
+----------------------
+1. **完整格式**（原始 `assets/apis.json`）：
 
-    assets/apis.part00.json   ← 每个分片是一个完整的 JSON 数组（条目子集）
-    assets/apis.part01.json
-    ...
+       {"apis": [{"id": ..., "params": [{"key":..., "required":true}], ...}]}
 
-`load()` 会按文件名排序读取全部分片并合并 `apis` 列表。两个入口等价：
+2. **紧凑格式**（`assets/apis.partNN.json`）—— 为绕开单文件体积限制而拆分：
 
-    assets/apis.json          ← 完整文件
-    assets/apis.part*.json    ← 分片（可与完整文件共存，自动合并去重）
+       {"columns": ["id","category",...], "rows": [[...],[...]]}
+
+   `required` 列用逗号分隔的必填参数名，导入时还原成 `params` 列表。
+
+3. **数组格式**：`[ {...api...}, ... ]`
+
+`load()` 会读取 `apis.json` 与所有 `apis.part*.json`，按 id 去重合并，
+所以完整文件与分片可以共存 —— 分片用于补全或替代缺失的完整文件。
 """
 from __future__ import annotations
 
@@ -39,19 +42,39 @@ def _read_json(path: Path) -> object:
 
 def _part_files() -> list[Path]:
     """按文件名排序返回所有分片（apis.part00.json, apis.part01.json, ...）。"""
-    assets = config.ASSETS_DIR
     try:
-        files = sorted(assets.glob("apis.part*.json"))
+        return sorted(config.ASSETS_DIR.glob("apis.part*.json"))
     except OSError:
-        files = []
-    return files
+        return []
+
+
+def _expand_compact(obj: dict) -> tuple[list[dict], dict]:
+    """紧凑格式 {"columns":[...], "rows":[[...]]} → (api 列表, 其余元数据)。"""
+    columns = [str(c) for c in (obj.get("columns") or [])]
+    rows = obj.get("rows") or []
+    out: list[dict] = []
+    for row in rows:
+        if not isinstance(row, list):
+            continue
+        item: dict = {}
+        for idx, col in enumerate(columns):
+            value = row[idx] if idx < len(row) else None
+            if col == "required":
+                names = [n.strip() for n in str(value or "").split(",") if n.strip()]
+                item["params"] = [{"key": n, "required": True} for n in names]
+                item["_required"] = names
+            elif value not in (None, ""):
+                item[col] = value
+        out.append(item)
+    meta = {k: v for k, v in obj.items() if k not in ("columns", "rows", "apis")}
+    return out, meta
 
 
 @functools.lru_cache(maxsize=1)
 def load() -> dict:
-    """加载接口目录。合并完整文件与分片；同一 id 保留先出现者。"""
-    parts = _part_files()
+    """加载接口目录（完整文件 + 分片合并，按 id 去重）。"""
     main = config.CATALOG_FILE
+    parts = _part_files()
 
     if not main.is_file() and not parts:
         raise CatalogError("接口目录缺失: %s（也没有分片 assets/apis.part*.json）" % main)
@@ -60,18 +83,19 @@ def load() -> dict:
     seen: set[str] = set()
 
     def _absorb(obj: object) -> None:
+        items: list[dict] = []
         if isinstance(obj, list):
-            items = obj
+            items = [a for a in obj if isinstance(a, dict)]
         elif isinstance(obj, dict):
-            items = obj.get("apis") or []
             for k, v in obj.items():
-                if k != "apis":
-                    data.setdefault(k, v)
-        else:
-            items = []
+                if k in ("apis", "rows", "columns"):
+                    continue
+                data.setdefault(k, v)
+            if obj.get("columns") is not None:
+                items, _ = _expand_compact(obj)
+            else:
+                items = [a for a in (obj.get("apis") or []) if isinstance(a, dict)]
         for a in items:
-            if not isinstance(a, dict):
-                continue
             aid = str(a.get("id") or "")
             if aid and aid in seen:
                 continue
@@ -168,6 +192,10 @@ def params_spec(api: dict) -> list[dict]:
 
 
 def required_keys(api: dict) -> list[str]:
+    """必填参数名。兼容紧凑格式的 `_required` 与完整格式的 `params`。"""
+    names = api.get("_required")
+    if names:
+        return [str(n) for n in names]
     return [str(p.get("key")) for p in params_spec(api) if p.get("required")]
 
 
