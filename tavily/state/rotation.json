@@ -1,0 +1,18 @@
+{
+  "total": 269,
+  "pointer": 140,
+  "cycle": 1,
+  "quarantine": [
+    100,
+    101,
+    102,
+    103,
+    104,
+    105,
+    106
+  ],
+  "handed_out": 140,
+  "updated_at": "2026-10-21T09:45:04+00:00",
+  "usage": {},
+  "failures": {}
+}
