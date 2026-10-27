@@ -1,0 +1,31 @@
+# Kore 平台全部 feature（kpls kore-mint --grant-all 用）
+# 来源：GET https://m.590.net/api/auth/features（29 条）
+auction.buy
+bookmark.ai_server
+bookmark.nav_export
+composite.select
+distress.reversal
+erjin3
+firstboard.ignite
+huoma.group
+ink.static_hosting
+kore-study.access
+kore.market
+kpl.browser
+kpl.fetch
+kpl.workbench
+lbc5plus
+mp.darkflow
+news.collect
+quant.strategy
+sanjin4
+shield.protect
+sijin5
+snowshot.advanced
+surge.lowbuy
+tenstock.access
+translation.use
+trend.analysis
+url590.custom_domain
+weimai.buy
+zt.yijiner

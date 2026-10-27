@@ -1,0 +1,28 @@
+# 凭据绝不入库
+*.token
+*.token.txt
+*_token.txt
+tavily-keys.txt
+kpl_accounts.ini
+py_token.txt
+assets/tushare.token
+assets/kpl_accounts.ini
+assets/py_token.txt
+
+# 构建产物
+*.pyc
+__pycache__/
+.DS_Store
+Thumbs.db
+
+# 本地状态（各机独立）
+tavily/state/rotation.json
+kpl-stock-data/var/account_cursor
+
+# 大件
+*.tar.gz
+*.zip
+*.db
+*.ttf
+*.png
+*.docx
